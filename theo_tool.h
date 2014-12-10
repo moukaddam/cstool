@@ -9,6 +9,7 @@ class theo_tool
  public:
 
 //Champ statiques
+bool   fMixed; // in case it's mixed 
 string fpath;
 string fcode;
 string fsystem;
@@ -25,15 +26,17 @@ TFile *fOutputFile;
 draw_tool* fDrawer;
 
 //Methodes
-theo_tool(string,string,string);
+theo_tool(string,string,string, bool);
 ~theo_tool(void);
 
 void Show(void);
 double GetSigmaTheo(double); // return theo_cs for theta_cm input
-void GetInput(void);
+void GetInput(string);
 void ShowIntegral(void);
 void WriteDown(void);
 void ApplyFactor(double SF);
+
+void Mix(string path1, string path2, double MixFactor);
 
  };
 

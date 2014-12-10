@@ -19,15 +19,21 @@ fHistManager = new hist_tool(path) ;
 fError = new error_tool("./input/BeamTarget.dat") ;
 fDrawer= new draw_tool("./output/get_cs_drawer.root") ;
 
-for (unsigned i=0;i<fpath_theo.size();i++)
-{
-fTheoCs.push_back(new theo_tool(fcode_theo.at(i),fsystem_theo.at(i),fpath_theo.at(i)) ) ;
+for (unsigned i=0;i<fpath_theo.size();i++) {
+
+fTheoCs.push_back(new theo_tool(fcode_theo.at(i),fsystem_theo.at(i),fpath_theo.at(i), false) ) ;
+
 fSpectroFactorEstimate.push_back(0);
-fChi2Estimate.push_back(0);
 fSpectroFactorUpper.push_back(0);
-fChi2EstimateUpper.push_back(0);
 fSpectroFactorLower.push_back(0);
+
+fChi2Estimate.push_back(0);
+fChi2EstimateUpper.push_back(0);
 fChi2EstimateLower.push_back(0);
+
+fMixFactorEstimate.push_back(0); // pure 
+fMixFactorEstimateUpper.push_back(0); 
+fMixFactorEstimateLower.push_back(0);
 }
 
 fOutputFile= new TFile("./output/get_cs_output.root","RECREATE");
@@ -265,6 +271,7 @@ cout << "---------------------------------------------------------------------- 
 	cout << endl;
 	printf(" SF \t\t\t%1.2f +/- %1.2f \t",fSpectroFactorEstimate.at(curve_num),maxerror);
 	printf(" \t\tChi2 \t%1.2f ",fChi2Estimate.at(curve_num));
+	printf("\n \tMixing factor  \t%1.2f", fMixFactorEstimate.at(curve_num));
 	if (fSpectroFactorEstimate.at(curve_num)>1) printf("\n \t\t\tViolation of Sum Rule ");
 	cout << endl;
 	}
@@ -306,8 +313,8 @@ fTheoCs.at(i)->ShowIntegral();
 fTheoCs.at(i)->WriteDown();
 //----------------------------------------
 GetSpectroscopicFactor(i);
-
 }
+
 
 if (fFit!=0) ApplySpectroscopicFactor(); //on all vector
 
@@ -341,14 +348,22 @@ GetSumExpVectorLab_file();  // get number of counts from a file
 GetSigmaExpVectorLab2(); // get sigma in lab using fsum and fnorm
 GetSigmaExpVectorCM(); // get sigma in cm
 //-----------------------------------------
+
+// pure curves 
 for (unsigned i=0;i<fTheoCs.size();i++)
-{
+GetSpectroscopicFactor(i);
+
+// mixed curves 
+GetMixedSpectroscopicFactor(0,1); 
+GetMixedSpectroscopicFactor(2,3); 
+
+for (unsigned i=0;i<fTheoCs.size();i++) {
 TransformTheoryCrossSection(i);
 fTheoCs.at(i)->Show();
 fTheoCs.at(i)->ShowIntegral();
 fTheoCs.at(i)->WriteDown();
-GetSpectroscopicFactor(i);
 }
+
 
 //----------------------------------------
 
@@ -376,7 +391,6 @@ CalculateDbkg(/*Deutron Bkgr Counts*/ 980 , /*efficiency*/ 0.189697,  /*CM angle
 //----------------------------------------
 
 AddGraphs();
-
 Show();
 
 fOutputFile->cd();
@@ -711,7 +725,7 @@ void get_cs::TransformTheoryCrossSection(unsigned i)
 // transform theo cm -> lab
 if (fTheoCs.at(i)->fsystem=="CM" && (fTheoCs.at(i)->fcode=="DWUCK" || fTheoCs.at(i)->fcode=="TWOFNR"))
 	{
-	for (int j=0 ; j<fTheoCs.at(i)->ftheta_cm_theo.size();j++)
+	for (unsigned j=0 ; j<fTheoCs.at(i)->ftheta_cm_theo.size();j++)
 		{
 		double theta = fTheoCs.at(i)->ftheta_cm_theo.at(j);
 		double theta_inv = fTheoCs.at(i)->ftheta_cm_theo_inv.at(j);
@@ -943,13 +957,16 @@ fChi2EstimateUpper.at(curve_num) = 10000 ;
 fSpectroFactorLower.at(curve_num) = 0 ; 
 fChi2EstimateLower.at(curve_num) = 10000 ; 
 
+fMixFactorEstimate.at(curve_num) = 0 ; 
+fMixFactorEstimateUpper.at(curve_num) = 0 ;
+fMixFactorEstimateLower.at(curve_num) = 0 ;
+
 fSpectroFactor.clear();
 fSpChi2.clear();
 
 double Sf = 0.0001 ;
 double Sf_step = 0.0005 ;
 double chi2 = 0 ;
-double chi2_old = 0 ;
 int N =0 ;
 
 while (Sf<=10)
@@ -979,13 +996,12 @@ while (Sf<=10)
 		//cout<<" minimum...................... : SF - chi2 : "<<Sf<<" - "<<chi2<<endl ;
 		fChi2Estimate.at(curve_num) = chi2 ;
 		fSpectroFactorEstimate.at(curve_num) = Sf ;
+		fMixFactorEstimate.at(curve_num) = 0 ;
 		}
 	
 	//store chi2 and associated SF
 	fSpChi2.push_back(chi2);
 	fSpectroFactor.push_back(Sf);
-	
-	chi2_old = chi2 ;
 	chi2=0;
 	
 	//change Sf
@@ -1023,6 +1039,130 @@ while (Sf<=10)
 
 
 }
+
+
+
+void get_cs::GetMixedSpectroscopicFactor(unsigned curve1, unsigned curve2)
+{
+cout << "Inside get_cs::GetMixedSpectroscopicFactor()" << endl;
+
+// fsigma_cm_exp;
+// fsigma_cm_exp_err; // only the statistic error for the mean while
+
+// it adds an element to the existing vectors
+fSpectroFactorEstimate.push_back(0)  ; 
+fChi2Estimate.push_back(10000)  ; 
+fSpectroFactorUpper.push_back(0) ; 
+fChi2EstimateUpper.push_back(10000) ; 
+fSpectroFactorLower.push_back(0); 
+fChi2EstimateLower.push_back(10000) ; 
+
+fMixFactorEstimate.push_back(0); 
+fMixFactorEstimateLower.push_back(0) ; 
+fMixFactorEstimateUpper.push_back(0) ; 
+fcolor_theo.push_back(1);
+
+fSpectroFactor.clear();
+fSpChi2.clear();
+
+double Sf = 0.0001 ;
+double Sf_step = 0.0005 ;
+double chi2 = 0 ;
+int N = 0 ;
+
+//create the new combined curve
+double MixFactor = 0 ;  // start value 
+int MixFactorSteps = 50 ; 
+
+for (int i = 0 ; i <= MixFactorSteps ; i++) {
+
+// mixing factor 
+MixFactor =  (1.0*i) / (MixFactorSteps) ; 
+Sf = 0.0001 ;
+
+while (Sf<=10)	{
+
+	chi2 = 0 ;
+	N=0 ;
+	double chi2_element = 0 ;
+	double sigma_cm_theo = 0 ;
+
+	// en cas ou le fit se fait sur les points les plus proches de zero CM:
+	for (unsigned i = 0; i < fsigma_cm_exp.size(); i++) {
+		//if (i==2) continue ;
+		chi2_element = 0 ; 
+		N++;
+		sigma_cm_theo = MixFactor*fTheoCs.at(curve1)->GetSigmaTheo(ftheta_cm_exp.at(i)) ;
+		sigma_cm_theo = sigma_cm_theo  + (1-MixFactor)*fTheoCs.at(curve2)->GetSigmaTheo(ftheta_cm_exp.at(i)) ;
+		//chi2_element = fabs( (fsigma_cm_exp.at(i) - sigma_cm_theo*Sf)/fsigma_cm_exp_err.at(i)) ; //def 1
+		chi2_element = pow( (fsigma_cm_exp.at(i) - sigma_cm_theo*Sf)/fsigma_cm_exp_err.at(i),2) ;  //def 2
+		chi2 = chi2 + chi2_element ;
+		}
+	
+	// normalise chi2
+	chi2 = chi2/(N-1) ; 
+	
+	//search for minimum
+	if ( chi2 < fChi2Estimate.back() )
+		{
+		//cout<<" minimum...................... : SF - chi2 : "<<Sf<<" - "<<chi2<<endl ;
+		fChi2Estimate.back() = chi2 ;
+		fSpectroFactorEstimate.back() = Sf ;
+                fMixFactorEstimate.back() = MixFactor ; 
+		}
+	
+	//store chi2 and associated SF
+	fSpChi2.push_back(chi2);
+	fSpectroFactor.push_back(Sf);
+	
+	//change Sf
+	Sf = Sf + Sf_step;
+	}// end of while 
+
+} // end of for
+
+// create add an element to the theo_tool
+string code = fTheoCs.at(curve1)->fcode;  // Mixing different codes doesnt seem write
+string system = fTheoCs.at(curve1)->fsystem; 
+theo_tool* mixed = new theo_tool(code,system,"", true) ; 
+mixed->Mix( fTheoCs.at(curve1)->fpath , fTheoCs.at(curve2)->fpath , fMixFactorEstimate.back()); 
+fTheoCs.push_back(mixed) ; 
+
+
+	cout<<" # # # # # # # # # # # # # # # # # # # # "<<endl ;
+	cout<<" #                MIXED                # "<<endl ;
+	cout<<" # Fit is made on  : "<<N<<"/"<<fsigma_cm_exp.size()<<" point(s)      #"<<endl ;
+	cout<<" #                                     # "<<endl ;
+	cout<<" # # # # # # # # # # # # # # # # # # # # "<<endl ;
+
+//GetSpectroscopicFactorError
+	for (unsigned i = 0 ; i<fSpChi2.size() ; i++)
+	{
+		if ( fabs((fChi2Estimate.back() + 1) - fSpChi2.at(i)) < 0.01 )
+		{
+// 		cout<<" fabs((Chi2min+1)-chi2) : "<<fabs((fChi2Estimate+1) - fSpChi2.at(i))<<endl ;
+// 		cout<<" SF - chi2 : "<<fSpectroFactor.at(i)<<" - "<<fSpChi2.at(i)<<endl ;
+		
+		if (fSpChi2.at(i)<fSpChi2.at(i+1))
+			{
+// 			cout<<" Tag SF + "<<endl ;
+			fSpectroFactorUpper.back() = fSpectroFactor.at(i) ;
+			fChi2EstimateUpper.back() = fSpChi2.at(i);
+			}
+		else
+			{
+// 			cout<<" Tag SF - "<<endl ;
+			fSpectroFactorLower.back() = fSpectroFactor.at(i) ;
+			fChi2EstimateLower.back() = fSpChi2.at(i) ;
+			}
+		}
+	}
+
+
+}
+
+
+
 
 
 void get_cs::AddGraphs()
@@ -1064,9 +1204,9 @@ GraphVector.push_back(fDrawer->ConvertToGraph(fTheoCs.at(i)->ftheta_cm_theo,fThe
 }
 
 
+
 TMultiGraph *mg = new TMultiGraph();
 TMultiGraph *mg_theo = new TMultiGraph();
-
 
 // 30 graphs for indivicual graphs
 TCanvas *c_IndiviGraph[50];
@@ -1110,7 +1250,8 @@ chi2->Draw();
 //Add experimental (on individual)
 if (fFit!=0) gr_sigma_cm->Draw("same p");
 c_IndiviGraph[i]->Write();
-c_IndiviGraph[i]->SaveAs(Form("./output/prlni69/level0/graph%d_level0.png",(int)i));
+//c_IndiviGraph[i]->SaveAs(Form("./output/prlni69/level0/graph%d_level0.png",(int)i));
+c_IndiviGraph[i]->SaveAs(Form("./graph%d_level0.png",(int)i));
 
 }
 
@@ -1236,6 +1377,16 @@ if (fcolor_theo.at(i) == 22) {
 
  if (fcolor_theo.at(i) == 7) {
 	tex =  new TLatex(19,14.7,"l = 5");
+// 	tex =  new TLatex(19,14.7,"l = 5 , (1h11/2)");
+        tex->SetTextColor(fcolor_theo.at(i));
+	tex->SetTextFont(32);
+	tex->SetTextSize(0.07);
+	tex->SetLineWidth(2);
+	tex->Draw(); }
+
+
+ if (fcolor_theo.at(i) == 1) {
+	tex =  new TLatex(19,14.7,"mixed");
 // 	tex =  new TLatex(19,14.7,"l = 5 , (1h11/2)");
         tex->SetTextColor(fcolor_theo.at(i));
 	tex->SetTextFont(32);

@@ -59,13 +59,18 @@ vector <double> fjacob_LabtoCM ;
 vector <double> fjacob_LabtoCM_err ;
 
 vector <double>  fSpectroFactorEstimate ;
-vector <double>  fChi2Estimate ;
 vector <double>  fSpectroFactorUpper ;
-vector <double>  fChi2EstimateUpper ;
 vector <double>  fSpectroFactorLower ;
-vector <double>  fChi2EstimateLower ;
-int fFit;
 
+vector <double>  fChi2Estimate ;
+vector <double>  fChi2EstimateUpper ;
+vector <double>  fChi2EstimateLower ;
+
+vector <double>  fMixFactorEstimate ;
+vector <double>  fMixFactorEstimateLower ;
+vector <double>  fMixFactorEstimateUpper ;
+
+int fFit;
 
 string fsystem;
 string fpath;
@@ -102,6 +107,8 @@ void GetSigmaExpVectorCM(void);
 
 void TransformTheoryCrossSection(unsigned);
 void GetSpectroscopicFactor(unsigned);
+void GetMixedSpectroscopicFactor(unsigned, unsigned); // it mixes two curves
+
 void ApplySpectroscopicFactor(void);
 
 void DrawNormSumVector(void);

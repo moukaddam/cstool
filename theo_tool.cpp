@@ -6,55 +6,65 @@ cout << "Inside theo_tool::Destructor()" << endl;
 
 }
 
-theo_tool::theo_tool(string code, string system, string path)
-{
+theo_tool::theo_tool(string code, string system, string path, bool mixed) {
+
 cout << "Inside theo_tool::theo_tool()" << endl;
 fcode=code;
 fpath=path;
 fsystem=system;
+fMixed=mixed;
 
-GetInput();
+if (!fMixed) GetInput(path);
 
 fOutputFile= new TFile("./output/theo_tool_output.root","RECREATE");
 //fOutputFile->cd();
 fDrawer= new draw_tool("./output/theo_tool_drawer.root") ;
 }
 
-void theo_tool::Show()
-{
-cout << "Inside theo_tool::Show()" << endl;
-cout << "=================================================" << endl;
-cout << "CODE (THEO)		" <<fcode<< endl;
-cout << "SYSTEM (THEO) 		" <<fsystem<< endl;
-cout << "PATH (THEO) 		" <<fpath<< endl;
-cout << "-------------------------------------------------" << endl;
+void theo_tool::Show() {
 
-cout<<" THEORY CROSS SECTION CM : "<<ftheta_cm_theo.size()<< " Angles "<<endl;
-for (unsigned i=0; i< ftheta_cm_theo.size();i++)
-{
-//if (i%20==0)
-//cout<<i%20<<" " << ftheta_cm_theo.at(i)<<" / "<<ftheta_cm_theo_inv.at(i)<<" <--> "<<fsigma_cm_theo.at(i)<<endl;
+	cout << "Inside theo_tool::Show()" << endl;
+	cout << "=================================================" << endl;
+	cout << "CODE (THEO)		" <<fcode<< endl;
+	cout << "SYSTEM (THEO) 		" <<fsystem<< endl;
+	cout << "PATH (THEO) 		" <<fpath<< endl;
+	cout << "Mixed	 		" <<fMixed<< endl;
+	cout << "-------------------------------------------------" << endl;
+
+	cout<<" THEORY CROSS SECTION CM : "<<ftheta_cm_theo.size()<< " Angles "<<endl;
+	for (unsigned i=0; i< ftheta_cm_theo.size();i++)
+		{
+		if (i%20==0)
+		cout<<i%20<<" " << ftheta_cm_theo.at(i)<<" / "<<ftheta_cm_theo_inv.at(i)<<" <--> "<<fsigma_cm_theo.at(i)<<endl;
+		}
+
+	cout << "-------------------------------------------------" << endl;
+
+	cout<<" THEORY CROSS SECTION LAB : "<<ftheta_lab_theo.size()<< " Angles "<<endl;
+	for (unsigned i=0; i< ftheta_lab_theo.size();i++)
+		{
+		if (i%20==0)
+		cout<<i%20<<" " <<ftheta_lab_theo.at(i)<<" / "<<ftheta_lab_theo_inv.at(i)<<" <--> "<<fsigma_lab_theo.at(i)<<endl;
+		}
+
+	cout << "=================================================" << endl;
 }
 
-cout << "-------------------------------------------------" << endl;
+void theo_tool::GetInput(string path) {
 
-cout<<" THEORY CROSS SECTION LAB : "<<ftheta_lab_theo.size()<< " Angles "<<endl;
-for (unsigned i=0; i< ftheta_lab_theo.size();i++)
-{
-//if (i%20==0)
-//cout<<i%20<<" " <<ftheta_lab_theo.at(i)<<" / "<<ftheta_lab_theo_inv.at(i)<<" <--> "<<fsigma_lab_theo.at(i)<<endl;
-}
+cout << "theo_tool::GetInput / Reading Input from " << path << endl;
 
-cout << "=================================================" << endl;
-}
-
-void theo_tool::GetInput(void)
-{
-cout << "Inside theo_tool::GetInput()" << endl;
 double angle,cs,buffer;
 
+ftheta_cm_theo.clear();
+ftheta_cm_theo_inv.clear();
+fsigma_cm_theo.clear();
+ftheta_lab_theo.clear();
+ftheta_lab_theo_inv.clear();
+fsigma_lab_theo.clear();
+
 ifstream inf;
-inf.open(fpath.c_str(), ifstream::in);
+inf.open(path.c_str(), ifstream::in);
 if (!inf) {cout<<"ERROR IN OPENING CROSS SECTION FILE : "<<fpath<<endl; exit(-1);}
 else
 	{
@@ -69,7 +79,8 @@ else
 			ftheta_cm_theo.push_back(angle);
 			ftheta_cm_theo_inv.push_back(180-angle);
 			}
-		}		
+		}
+	else			
 //----------------------------------------------------------------------
 	if (fcode=="TWOFNR")
 		{
@@ -82,35 +93,59 @@ else
 			ftheta_cm_theo_inv.push_back(180-angle);
 			}
 		}
-//----------------------------------------------------------------------
-// 	if (fcode=="OTHER")
-// 		{
-// 		cout<<" READING FILE "<<path_cs_theo<<" (DWUCK) IN PROGRESS "<<endl;
-// 		while(!inf.eof())
-// 			{
-// 			inf>>angle>>cs;
-// 			sigma_cm_theo.push_back(cs);
-// 			theta_cm_theo.push_back(angle);
-// 			}
-// 	cout<<" THEORY CEOSS SECTION "<<endl;
-// 	for (int i=0; i<(int)  theta_cm_theo.size();i++)
-// 	if (i%10==0)cout<<"  "<< theta_cm_theo.at(i)<<"  "<<sigma_cm_theo.at(i)<<endl;	
-// 		}
-
+	else cout<<" CODE NOT KNOWN " <<endl ; 
+	
 	}
 
   inf.close();
+
+cout << " fsigma_cm_theo,  Read " << fsigma_cm_theo.size() << " values "<< endl ;
+cout << " ftheta_cm_theo,  Read " << ftheta_cm_theo.size() << " values "<< endl ;
+cout << " ftheta_cm_theo_inv,  Read " << ftheta_cm_theo_inv.size() << " values "<< endl ;
 
 }
 
 double theo_tool::GetSigmaTheo(double theta_cm)
 {
 
-for (unsigned i=0; i< ftheta_cm_theo.size()-1;i++)
-{
-if (theta_cm>=ftheta_cm_theo.at(i) && theta_cm<=ftheta_cm_theo.at(i+1) )
-return ( fsigma_cm_theo.at(i) + fsigma_cm_theo.at(i+1) ) / 2.0;
+	for (unsigned i=0; i< ftheta_cm_theo.size()-1;i++)
+		{
+		if (theta_cm>=ftheta_cm_theo.at(i) && theta_cm<=ftheta_cm_theo.at(i+1) )
+		return ( fsigma_cm_theo.at(i) + fsigma_cm_theo.at(i+1) ) / 2.0;
+		}
 }
+
+void theo_tool::Mix(string path1, string path2, double MixFactor){
+
+fMixed = true ; 
+if (MixFactor > 1 ) {
+cout << " Mixing Factor > 1  : " << MixFactor << endl ;
+getchar() ; 
+} 
+
+cout << " path1      : " << path1 << endl ;
+cout << " path2      : " << path2 << endl ;
+cout << " MixFactor  : " << MixFactor << endl ;
+
+// get input from first file and store it in this vectors
+GetInput(path1);
+vector <double> sigma_cm_theo_1;
+vector <double> sigma_lab_theo_1;
+sigma_cm_theo_1 = fsigma_cm_theo;
+sigma_lab_theo_1 = fsigma_lab_theo ;
+
+GetInput(path2);
+vector <double> sigma_cm_theo_2;
+vector <double> sigma_lab_theo_2;
+sigma_cm_theo_2 = fsigma_cm_theo;
+sigma_lab_theo_2 = fsigma_lab_theo ;
+
+
+for (unsigned i = 0 ; i < fsigma_cm_theo.size() ; i++) 
+ fsigma_cm_theo.at(i) = MixFactor * sigma_cm_theo_1.at(i) + (1-MixFactor) * sigma_cm_theo_2.at(i) ;
+
+for (unsigned i = 0 ; i < fsigma_lab_theo.size() ; i++) 
+ fsigma_lab_theo.at(i) = MixFactor * sigma_lab_theo_1.at(i) + (1-MixFactor) * sigma_lab_theo_2.at(i) ;
 
 }
 
